@@ -1,0 +1,365 @@
+/* Container utama */
+.profil-container {
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+  padding-top: 80px;
+  background-color: #f3fdf3;
+}
+
+/* Decorative circles */
+.decorative-circle {
+  position: absolute;
+  width: 320px;
+  height: 280px;
+  border-radius: 50%;
+  background-color: #5b7f5d;
+  background-image: url('/images/bgw.png');
+  background-size: cover;
+  background-position: center;
+}
+
+.decorative-circle-top {
+  top: -80px;
+  right: -80px;
+  opacity: 0.8;
+}
+
+.decorative-circle-bottom {
+  bottom: -80px;
+  left: -80px;
+  opacity: 0.7;
+}
+
+/* Large screen decorative circles */
+@media (min-width: 1024px) {
+  .decorative-circle {
+    width: 600px;
+    height: 560px;
+  }
+  
+  .decorative-circle-top {
+    top: -120px;
+    right: -160px;
+  }
+  
+  .decorative-circle-bottom {
+    bottom: -240px;
+    left: -160px;
+  }
+}
+
+/* Main content */
+.main-content {
+  position: relative;
+  z-index: 10;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 16px;
+}
+
+@media (min-width: 1024px) {
+  .main-content {
+    padding: 64px 16px;
+  }
+}
+
+.content-wrapper {
+  max-width: 1536px;
+  margin: 0 auto;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 1024px) {
+  .header {
+    margin-bottom: 48px;
+  }
+}
+
+.header-title {
+  font-size: 2.25rem;
+  font-weight: bold;
+  color: #1f2937;
+  margin-bottom: 8px;
+}
+
+@media (min-width: 1024px) {
+  .header-title {
+    font-size: 3rem;
+  }
+}
+
+.header-subtitle {
+  color: #4b5563;
+}
+
+/* Profile card */
+.profile-card {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+}
+
+/* Background blur layer */
+.profile-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  backdrop-filter: blur(40px);
+  z-index: -1;
+}
+
+.profile-card-content {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+}
+
+@media (min-width: 1024px) {
+  .profile-card-content {
+    flex-direction: row;
+  }
+}
+
+/* Profile photo section */
+.profile-photo-section {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: linear-gradient(to bottom right, rgba(91, 127, 93, 0.6), rgba(243, 253, 243, 0.8));
+  position: relative;
+  z-index: 2;
+}
+
+@media (min-width: 1024px) {
+  .profile-photo-section {
+    width: 33.333333%;
+    padding: 48px;
+  }
+}
+
+.photo-container {
+  position: relative;
+  margin-bottom: 24px;
+  z-index: 3;
+}
+
+.profile-photo {
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid #5b7f5d;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 4;
+  filter: none !important;
+  backdrop-filter: none !important;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+@media (min-width: 1024px) {
+  .profile-photo {
+    width: 160px;
+    height: 160px;
+  }
+}
+
+.photo-badge {
+  position: absolute;
+  bottom: -8px;
+  right: -8px;
+  padding: 8px;
+  border-radius: 50%;
+  background-color: #5b7f5d;
+  z-index: 5;
+}
+
+.profile-name {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #1f2937;
+  margin-bottom: 8px;
+  position: relative;
+  z-index: 3;
+}
+
+@media (min-width: 1024px) {
+  .profile-name {
+    font-size: 1.875rem;
+  }
+}
+
+/* Profile info section */
+.profile-info-section {
+  padding: 32px;
+  position: relative;
+  z-index: 2;
+}
+
+@media (min-width: 1024px) {
+  .profile-info-section {
+    width: 66.666667%;
+    padding: 48px;
+  }
+}
+
+.info-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  text-align: center;
+  color: #1f2937;
+  margin-bottom: 32px;
+}
+
+/* Info grid */
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+@media (min-width: 768px) {
+  .info-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Info cards */
+.info-card {
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 2;
+}
+
+.info-card:hover {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.info-card-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.info-icon {
+  background-color: #dcfce7;
+  padding: 8px;
+  border-radius: 8px;
+  margin-right: 12px;
+}
+
+.info-label {
+  font-weight: 600;
+  color: #374151;
+}
+
+.info-value {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #1f2937;
+}
+
+/* Action buttons */
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 32px;
+  justify-content: center; 
+  align-items: center; 
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .action-buttons {
+    flex-direction: row;
+    max-width: 600px; 
+    margin-left: auto; 
+    margin-right: auto; 
+  }
+}
+
+.btn-primary,
+.btn-secondary {
+  flex: 1;
+  font-weight: 600;
+  padding: 16px 32px; 
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  transform: scale(1);
+  border: none;
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+  min-width: 300px; 
+  width: 100%;
+  max-width: 350px; 
+}
+
+.btn-primary:hover,
+.btn-secondary:hover {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  transform: scale(1.05);
+}
+
+.btn-primary {
+  background-color: #5b7f5d;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #4a6b4d;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(4px);
+  border: 2px solid #5b7f5d;
+  color: #5b7f5d;
+}
+
+.btn-secondary:hover {
+  background-color: #5b7f5d;
+  color: white;
+}
+
+.w-6 {
+  width: 1.5rem;
+}
+
+.h-5 {
+  height: 1.25rem;
+}
+
+.text-white {
+  color: white;
+}
+
+.text-green-600 {
+  color: #16a34a;
+}

@@ -1,0 +1,32 @@
+/* Reset body untuk menghilangkan margin/padding default */
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* CSS minimal karena sebagian besar styling sudah ada di JSX dengan Tailwind */
+/* Hanya untuk styling yang tidak bisa dilakukan dengan utility classes */
+
+/* Untuk underline animation yang kompleks di desktop */
+@media (min-width: 1024px) {
+  .nav-link-desktop::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background-color: #22c55e;
+    transition: width 0.3s ease;
+  }
+  
+  .nav-link-desktop:hover::after,
+  .nav-link-desktop.active::after {
+    width: 100%;
+  }
+}
+
+/* Smooth scroll untuk seluruh halaman */
+html {
+  scroll-behavior: smooth;
+}
