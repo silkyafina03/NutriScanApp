@@ -32,6 +32,10 @@ app.use(express.urlencoded({
   limit: '50mb' 
 }));
 
+app.get('/', (req, res) => {
+  res.send('NutriScanApp is running! 🚀');
+});
+
 // Middleware untuk logging semua request
 app.use((req, res, next) => {
   console.log(`\n=== ${new Date().toISOString()} ===`);
