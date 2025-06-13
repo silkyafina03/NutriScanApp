@@ -2,7 +2,8 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import '../styles/Scan.css';
-import { predictFood, preloadModel, isModelLoaded } from '../utils/modelloader'; 
+import { predictFood, preloadModel, isModelLoaded } from '../utils/modelloader';
+import { postData } from '../utils/api';
 
 function Scan() {
   const fileInputRef = useRef(null);
@@ -16,30 +17,34 @@ function Scan() {
   const [scanResult, setScanResult] = useState(null);
   const [modelLoaded, setModelLoaded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isSaved, setIsSaved] = useState(false); // Tambahan: status apakah sudah disimpan
+  const [isSaved, setIsSaved] = useState(false);
   const navigate = useNavigate();
 
   // Load ML model saat komponen mount
   useEffect(() => {
-  const initializeModel = async () => {
-    try {
-      setIsLoading(true);
-      await preloadModel(); // Gunakan fungsi dari modelLoader
-      setModelLoaded(true);
-      console.log('Model berhasil dimuat');
-    } catch (error) {
-      console.error('Gagal memuat model:', error);
-      setError('Gagal memuat model AI. Silakan coba lagi nanti.');
-      setModelLoaded(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const initializeModel = async () => {
+      try {
+        setIsLoading(true);
+        await preloadModel();
+        setModelLoaded(true);
+        
+        // Logging sesuai environment
+        if (import.meta.env.VITE_ENABLE_DEBUG_LOGS === 'true') {
+          console.log('Model berhasil dimuat');
+        }
+      } catch (error) {
+        console.error('Gagal memuat model:', error);
+        setError('Gagal memuat model AI. Silakan coba lagi nanti.');
+        setModelLoaded(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  initializeModel();
-}, []);
+    initializeModel();
+  }, []);
 
-  // Database makanan dengan nutrisi lengkap
+  // Get current user ID from localStorage
   const getCurrentUserId = () => {
     const userId = localStorage.getItem('user_id');
     if (userId) return userId;
@@ -47,10 +52,10 @@ function Scan() {
     const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
     if (userData.id) return userData.id;
 
-    return null; // Atau throw error kalau tidak ada
+    return null;
   };
 
-  // Fungsi untuk menyimpan ke database riwayat
+  // Fungsi untuk menyimpan ke database riwayat menggunakan API utility
   const saveToHistory = async (scanData) => {
     try {
       setIsSaving(true);
@@ -71,23 +76,17 @@ function Scan() {
         tanggal: new Date().toISOString().split('T')[0] // Format YYYY-MM-DD
       };
 
-      console.log('Mengirim data ke riwayat:', historyData);
-
-      const response = await fetch('http://localhost:5000/api/riwayat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(historyData)
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Gagal menyimpan ke riwayat');
+      // Logging sesuai environment
+      if (import.meta.env.VITE_ENABLE_API_LOGGING === 'true') {
+        console.log('Mengirim data ke riwayat:', historyData);
       }
 
-      console.log('✅ Berhasil disimpan ke riwayat:', result);
+      // Menggunakan API utility untuk POST request
+      const result = await postData('/api/riwayat', historyData);
+
+      if (import.meta.env.VITE_ENABLE_API_LOGGING === 'true') {
+        console.log('✅ Berhasil disimpan ke riwayat:', result);
+      }
       
       // Tampilkan notifikasi sukses
       showNotification('✅ Hasil scan berhasil disimpan ke riwayat!', 'success');
@@ -99,7 +98,22 @@ function Scan() {
 
     } catch (error) {
       console.error('❌ Error menyimpan ke riwayat:', error);
-      showNotification(`❌ Gagal menyimpan ke riwayat: ${error.message}`, 'error');
+      
+      // Handle specific API errors
+      let errorMessage = 'Gagal menyimpan ke riwayat';
+      if (error.status === 400) {
+        errorMessage = 'Data tidak valid. Silakan periksa kembali.';
+      } else if (error.status === 401) {
+        errorMessage = 'Sesi login telah berakhir. Silakan login kembali.';
+      } else if (error.status === 500) {
+        errorMessage = 'Terjadi kesalahan server. Silakan coba lagi nanti.';
+      } else if (error.message.includes('timeout')) {
+        errorMessage = 'Koneksi timeout. Periksa koneksi internet Anda.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      showNotification(`❌ ${errorMessage}`, 'error');
       throw error;
     } finally {
       setIsSaving(false);
@@ -130,7 +144,9 @@ function Scan() {
     document.body.appendChild(notification);
     
     setTimeout(() => {
-      notification.remove();
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
     }, 4000);
   };
 
@@ -141,7 +157,7 @@ function Scan() {
       setError(null);
       setScanResult(null);
       setShowCamera(true);
-      setIsSaved(false); // Reset status penyimpanan
+      setIsSaved(false);
       
       if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
@@ -192,7 +208,7 @@ function Scan() {
 
     const imageData = canvas.toDataURL('image/jpeg', 0.8);
     setPreviewImage(imageData);
-    setIsSaved(false); // Reset status penyimpanan
+    setIsSaved(false);
 
     stopCamera();
   };
@@ -225,14 +241,13 @@ function Scan() {
         setPreviewImage(reader.result);
         setScanResult(null);
         setError(null);
-        setIsSaved(false); // Reset status penyimpanan
+        setIsSaved(false);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  // Helper function untuk mengkonversi image ke format yang dibutuhkan model
-  // Process image dengan ML model - TIDAK OTOMATIS SIMPAN
+  // Process image dengan ML model
   const processImage = async () => {
     if (!previewImage) return;
     
@@ -256,7 +271,9 @@ function Scan() {
           // Prediksi menggunakan model loader
           const prediction = await predictFood(img);
           
-          console.log('Hasil prediksi ML:', prediction);
+          if (import.meta.env.VITE_ENABLE_DEBUG_LOGS === 'true') {
+            console.log('Hasil prediksi ML:', prediction);
+          }
           
           // Siapkan hasil untuk ditampilkan
           foodResult = {
@@ -312,7 +329,7 @@ function Scan() {
     setPreviewImage(null);
     setScanResult(null);
     setError(null);
-    setIsSaved(false); // Reset status penyimpanan
+    setIsSaved(false);
     stopCamera();
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -330,11 +347,12 @@ function Scan() {
       });
       localStorage.setItem('foodScans', JSON.stringify(savedScans));
       
-      // Simpan ke database
+      // Simpan ke database menggunakan API
       await saveToHistory(scanResult);
       
     } catch (error) {
       console.error('Error saving result:', error);
+      // Jika gagal save ke API, setidaknya sudah tersimpan di localStorage
     }
   };
 
@@ -362,8 +380,12 @@ function Scan() {
         <div className="bg-white bg-opacity-90 px-6 py-4 rounded-lg shadow text-center mb-6">
           <h2 className="text-green-800 text-2xl font-semibold">Scan Sekarang</h2>
           <p className="text-gray-600 text-sm mt-1">
-            Ambil foto makanan untuk analisis nutrisi! 
-            
+            Ambil foto makanan untuk analisis nutrisi!
+            {import.meta.env.VITE_ENABLE_DEBUG_LOGS === 'true' && (
+              <span className="block text-xs text-blue-500 mt-1">
+                Debug Mode - {import.meta.env.VITE_APP_NAME} v{import.meta.env.VITE_APP_VERSION}
+              </span>
+            )}
           </p>
         </div>
 
@@ -490,7 +512,7 @@ function Scan() {
               <div>
                 <div><p className="text-center text-gray-600 mb-6">Tanggal: {scanResult.timestamp}</p></div>
                 <div className="bg-green-50 rounded-lg p-4 mb-4">
-                  <h4 className="font-bold  text-xl text-center text-green-900 mb-5">Informasi Nutrisi</h4>
+                  <h4 className="font-bold text-xl text-center text-green-900 mb-5">Informasi Nutrisi</h4>
                   <div className="grid grid-cols-1 gap-3 text-m mb-3">
                     <div>
                       <span className="text-black-900">Kalori: </span>
@@ -513,20 +535,20 @@ function Scan() {
               </div>
             </div>
 
-            {/* Status penyimpanan - DIUBAH */}
+            {/* Status penyimpanan */}
             <div className="text-center mb-8">
               {isSaved ? (
                 <p className="text-sm text-green-600">
-                  Hasil scan telah disimpan ke riwayat
+                  ✅ Hasil scan telah disimpan ke riwayat
                 </p>
               ) : (
                 <p className="text-sm text-orange-600">
-                  
+                  💾 Klik "Simpan ke Riwayat" untuk menyimpan hasil scan
                 </p>
               )}
             </div>
 
-            {/* Action Buttons - DIUBAH */}
+            {/* Action Buttons */}
             <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200">
               <button 
                 onClick={saveResult} 
@@ -538,15 +560,15 @@ function Scan() {
                 disabled={isSaving || isSaved}
               >
                 {isSaving ? 'Menyimpan...' : 
-                 isSaved ? 'Sudah Disimpan' : 
-                 'Simpan ke Riwayat'}
+                 isSaved ? '✅ Sudah Disimpan' : 
+                 '💾 Simpan ke Riwayat'}
               </button>
               <button 
                 onClick={resetScan} 
                 className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 px-4 rounded-lg font-medium transition-colors disabled:opacity-50"
                 disabled={isSaving}
               >
-                Scan Lagi
+                🔄 Scan Lagi
               </button>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Utensils, Target, TrendingUp, Clock, LayoutGrid, AlertCircle } from 'lucide-react';
+import { getData } from '../utils/api';
 
 function KaloriHarian() {
   const [userProfile, setUserProfile] = useState(null);
@@ -17,25 +18,26 @@ function KaloriHarian() {
     return indonesiaDate.toISOString().split('T')[0];
   });
 
-  // Helper function untuk mendapatkan user_id (sama seperti di Riwayat.jsx)
+  // Helper function untuk mendapatkan user_id
   const getUserId = () => {
     return localStorage.getItem('user_id') || '1'; // default user_id = 1 untuk testing
+  };
+
+  // Debug logging helper
+  const debugLog = (message, data = null) => {
+    if (import.meta.env.VITE_ENABLE_DEBUG_LOGS === 'true') {
+      console.log(`[KaloriHarian] ${message}`, data);
+    }
   };
 
   // Fungsi untuk fetch data user dari API - Enhanced error handling
   const fetchUserData = async () => {
     try {
       setLoading(true);
-      console.log('Fetching user data...');
+      debugLog('Fetching user data...');
       
-      const response = await fetch('http://localhost:5000/api/users');
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('Data from API:', data);
+      const data = await getData('/api/users');
+      debugLog('Data from API:', data);
       
       // API mengembalikan { message, total, users: [] }
       const user = data.users && data.users.length > 0 ? data.users[0] : null;
@@ -50,7 +52,7 @@ function KaloriHarian() {
           aktivitas: user.aktivitas,
           porsi_makan: user.porsi_makan
         });
-        console.log('User profile set:', user);
+        debugLog('User profile set:', user);
       } else {
         throw new Error('No user data found');
       }
@@ -62,7 +64,7 @@ function KaloriHarian() {
       
       // Fallback ke data default jika API gagal
       setUserProfile({
-        user_id: getUserId(), // Gunakan user_id dari localStorage
+        user_id: getUserId(),
         jenis_kelamin: 'Laki-laki',
         usia: 25,
         tinggi_badan: 170,
@@ -75,35 +77,19 @@ function KaloriHarian() {
     }
   };
 
-  // Fungsi untuk fetch data riwayat makanan berdasarkan tanggal - DIPERBAIKI
+  // Fungsi untuk fetch data riwayat makanan berdasarkan tanggal
   const fetchRiwayatMakanan = async (userId, tanggal) => {
     try {
-      console.log(`Fetching riwayat for user ${userId} on date ${tanggal}`);
+      debugLog(`Fetching riwayat for user ${userId} on date ${tanggal}`);
       
-      const response = await fetch(`http://localhost:5000/api/riwayat/${userId}`);
-      
-      if (!response.ok) {
-        if (response.status === 404) {
-          // Jika tidak ada riwayat, set data kosong
-          console.log('No history found for user');
-          setUserData(prev => ({
-            ...prev,
-            makananDimakan: [],
-            kaloriTerkonsumsi: 0
-          }));
-          return [];
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const riwayatData = await response.json();
-      console.log('Riwayat data received:', riwayatData);
+      const riwayatData = await getData(`/api/riwayat/${userId}`);
+      debugLog('Riwayat data received:', riwayatData);
       
       // Pastikan riwayatData adalah array
       const dataArray = Array.isArray(riwayatData) ? riwayatData : [];
       
       if (dataArray.length === 0) {
-        console.log('Empty riwayat data');
+        debugLog('Empty riwayat data');
         setUserData(prev => ({
           ...prev,
           makananDimakan: [],
@@ -127,7 +113,7 @@ function KaloriHarian() {
             itemDate = item.tanggal;
           }
           
-          console.log('Comparing dates:', {
+          debugLog('Comparing dates:', {
             itemDate,
             targetDate: tanggal,
             match: itemDate === tanggal
@@ -177,8 +163,8 @@ function KaloriHarian() {
       // Hitung total kalori terkonsumsi
       const totalKalori = makananHariIni.reduce((total, makanan) => total + makanan.kalori, 0);
 
-      console.log('Processed makanan:', makananHariIni);
-      console.log('Total kalori calculated:', totalKalori);
+      debugLog('Processed makanan:', makananHariIni);
+      debugLog('Total kalori calculated:', totalKalori);
 
       setUserData(prev => ({
         ...prev,
@@ -189,6 +175,19 @@ function KaloriHarian() {
       return makananHariIni;
     } catch (err) {
       console.error('Error fetching riwayat makanan:', err);
+      
+      // Handle specific API errors
+      if (err.status === 404) {
+        // Jika tidak ada riwayat, set data kosong
+        debugLog('No history found for user (404)');
+        setUserData(prev => ({
+          ...prev,
+          makananDimakan: [],
+          kaloriTerkonsumsi: 0
+        }));
+        return [];
+      }
+      
       setError('Gagal memuat data riwayat makanan.');
       
       // Set data kosong jika gagal
@@ -213,7 +212,7 @@ function KaloriHarian() {
 
   // Fetch data saat component mount
   useEffect(() => {
-    console.log('Component mounted, fetching user data...');
+    debugLog('Component mounted, fetching user data...');
     fetchUserData();
   }, []);
 
@@ -223,7 +222,7 @@ function KaloriHarian() {
     const userId = userProfile?.user_id || getUserId();
     
     if (userId) {
-      console.log('Fetching riwayat for userId:', userId, 'date:', selectedDate);
+      debugLog('Fetching riwayat for userId:', userId, 'date:', selectedDate);
       fetchRiwayatMakanan(userId, selectedDate);
     }
   }, [userProfile, selectedDate]);
@@ -277,7 +276,7 @@ function KaloriHarian() {
   useEffect(() => {
     if (userProfile) {
       const targetKalori = calculateTDEE(userProfile);
-      console.log('Calculated target kalori:', targetKalori);
+      debugLog('Calculated target kalori:', targetKalori);
       setUserData(prev => ({
         ...prev,
         targetKalori
@@ -306,7 +305,7 @@ function KaloriHarian() {
 
   // Fungsi untuk handle perubahan tanggal
   const handleDateChange = (event) => {
-    console.log('Date changed to:', event.target.value);
+    debugLog('Date changed to:', event.target.value);
     setSelectedDate(event.target.value);
   };
 
@@ -336,7 +335,7 @@ function KaloriHarian() {
 
   // Fungsi untuk refresh data
   const refreshData = async () => {
-    console.log('Refreshing data...');
+    debugLog('Refreshing data...');
     setLoading(true);
     await fetchUserData();
     
@@ -378,6 +377,13 @@ function KaloriHarian() {
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-green-900 mb-2">Kalori Harian</h1>
           <p className="text-gray-700">Pantau asupan kalori harian Anda</p>
+          
+          {/* Environment Info (only in development) */}
+          {import.meta.env.VITE_NODE_ENV !== 'production' && (
+            <div className="mt-2 text-xs text-gray-500">
+              {import.meta.env.VITE_APP_NAME} v{import.meta.env.VITE_APP_VERSION} | {import.meta.env.VITE_NODE_ENV}
+            </div>
+          )}
           
           {/* Date Selector */}
           <div className="mt-4 mb-4">

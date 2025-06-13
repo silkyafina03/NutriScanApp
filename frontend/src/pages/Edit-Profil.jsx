@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Camera, User, Loader2 } from 'lucide-react';
+import { getData, postData, putData } from '../utils/api';
 
 export default function AddEditProfile() {
   const [profileData, setProfileData] = useState({
@@ -10,20 +11,26 @@ export default function AddEditProfile() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isNewProfile, setIsNewProfile] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   useEffect(() => {
-    // Check if profile already exists
     checkExistingProfile();
   }, []);
 
   const checkExistingProfile = async () => {
     try {
-      const userId = localStorage.getItem('user_id') || '1'; // Simulasi untuk testing
+      setInitialLoading(true);
+      const userId = localStorage.getItem('user_id') || '1';
       
-      const response = await fetch(`http://localhost:5000/api/profil/${userId}`);
+      if (!userId) {
+        setError('User belum login atau user_id tidak ditemukan');
+        setInitialLoading(false);
+        return;
+      }
+
+      const existingProfile = await getData(`/api/profil/${userId}`);
       
-      if (response.ok) {
-        const existingProfile = await response.json();
+      if (existingProfile) {
         console.log('Existing profile found:', existingProfile);
         
         setProfileData({
@@ -37,15 +44,20 @@ export default function AddEditProfile() {
         }
         
         setIsNewProfile(false);
-      } else if (response.status === 404) {
-        console.log('No existing profile, creating new one');
-        setIsNewProfile(true);
-      } else {
-        console.error('Error checking profile:', response.statusText);
       }
     } catch (error) {
-      console.error('Error checking existing profile:', error);
-      setIsNewProfile(true); // Default to new profile on error
+      console.log('No existing profile found or error occurred:', error.message);
+      
+      // Jika error 404, berarti profil belum ada
+      if (error.status === 404) {
+        setIsNewProfile(true);
+      } else {
+        console.error('Error checking existing profile:', error);
+        // Tetap set sebagai new profile jika ada error lain
+        setIsNewProfile(true);
+      }
+    } finally {
+      setInitialLoading(false);
     }
   };
 
@@ -55,6 +67,11 @@ export default function AddEditProfile() {
       ...prev,
       [name]: value,
     }));
+    
+    // Clear error when user starts typing
+    if (error && name === 'nama' && value.trim()) {
+      setError('');
+    }
   };
 
   const handlePhotoChange = (e) => {
@@ -81,6 +98,15 @@ export default function AddEditProfile() {
     }
   };
 
+  const convertFileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleSave = async () => {
     // Validasi nama
     if (!profileData?.nama || !profileData.nama.trim()) {
@@ -94,11 +120,7 @@ export default function AddEditProfile() {
       return;
     }
 
-    const userId = localStorage.getItem('user_id') || '1'; // Simulasi untuk testing
-    
-    console.log('=== USER ID CHECK ===');
-    console.log('userId from localStorage:', userId);
-    console.log('isNewProfile:', isNewProfile);
+    const userId = localStorage.getItem('user_id') || '1';
     
     if (!userId) {
       setError('User belum login atau user_id tidak ditemukan');
@@ -113,17 +135,8 @@ export default function AddEditProfile() {
       
       // Convert foto ke base64 jika ada foto baru
       if (profileData.foto) {
-        base64String = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(profileData.foto);
-        });
+        base64String = await convertFileToBase64(profileData.foto);
       }
-      
-      console.log('=== PREPARING DATA ===');
-      console.log('base64String exists:', !!base64String);
-      console.log('nama:', profileData.nama);
       
       // Prepare request data
       const requestData = {
@@ -136,56 +149,77 @@ export default function AddEditProfile() {
         requestData.foto = String(base64String);
       }
       
-      console.log('=== FINAL REQUEST DATA ===');
-      console.log('user_id:', requestData.user_id);
-      console.log('nama:', requestData.nama);
-      console.log('foto provided:', !!requestData.foto);
+      let result;
       
-      // Determine method and URL
-      const method = isNewProfile ? 'POST' : 'PUT';
-      const url = isNewProfile 
-        ? 'http://localhost:5000/api/profil' 
-        : `http://localhost:5000/api/profil/${userId}`;
-      
-      console.log('=== SENDING REQUEST ===');
-      console.log('Method:', method);
-      console.log('URL:', url);
-      
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData),
-      });
-      
-      console.log('=== RESPONSE ===');
-      console.log('Status:', response.status);
-      console.log('OK:', response.ok);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Server error:', errorData);
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      if (isNewProfile) {
+        // Create new profile
+        result = await postData('/api/profil', requestData);
+      } else {
+        // Update existing profile
+        result = await putData(`/api/profil/${userId}`, requestData);
       }
       
-      const result = await response.json();
-      console.log('=== SUCCESS RESPONSE ===');
-      console.log('Result:', result);
+      console.log('Profile operation successful:', result);
       
-      alert(isNewProfile ? 'Profil berhasil dibuat!' : 'Profil berhasil diperbarui!');
+      // Show success message
+      const successMessage = isNewProfile ? 'Profil berhasil dibuat!' : 'Profil berhasil diperbarui!';
+      alert(successMessage);
       
-      // Redirect to profile page or refresh
-      window.location.href = '/profil'; // atau menggunakan navigate jika ada react-router
+      // Redirect to profile page
+      if (window.location.pathname.includes('/profil')) {
+        window.location.reload();
+      } else {
+        window.location.href = '/profil';
+      }
       
-    } catch (err) {
-      console.error('=== ERROR DETAILS ===');
-      console.error('Error:', err);
-      setError(err.message || 'Terjadi kesalahan saat menyimpan profil');
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      
+      let errorMessage = 'Terjadi kesalahan saat menyimpan profil';
+      
+      if (error.status === 400) {
+        errorMessage = error.message || 'Data yang dikirim tidak valid';
+      } else if (error.status === 401) {
+        errorMessage = 'Anda tidak memiliki akses untuk melakukan operasi ini';
+      } else if (error.status === 404) {
+        errorMessage = 'Profil tidak ditemukan';
+      } else if (error.status === 500) {
+        errorMessage = 'Terjadi kesalahan server. Silakan coba lagi nanti';
+      } else if (error.message.includes('timeout')) {
+        errorMessage = 'Koneksi timeout. Periksa koneksi internet Anda';
+      } else if (error.message.includes('fetch')) {
+        errorMessage = 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      window.location.href = '/profil';
+    }
+  };
+
+  // Show loading state while checking existing profile
+  if (initialLoading) {
+    return (
+      <div className="form-container relative w-full min-h-screen font-sans bg-gradient-to-br from-blue-50 to-green-50">
+        <div className="flex justify-center items-center min-h-screen">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-gray-600" />
+            <p className="text-gray-600">Memuat data profil...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="form-container relative w-full min-h-screen font-sans bg-gradient-to-br from-blue-50 to-green-50">
@@ -296,7 +330,7 @@ export default function AddEditProfile() {
             <button
               className="text-gray-500 hover:text-gray-700 text-sm transition-colors disabled:opacity-50 font-medium"
               disabled={isLoading}
-              onClick={() => window.history.back()}
+              onClick={handleBack}
             >
               Kembali
             </button>

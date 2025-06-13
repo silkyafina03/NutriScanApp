@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from "../components/Navbar";
 import { Link } from 'react-router-dom';
+import { getData } from "../utils/api"; // Import utility API
 import "../styles/Profil.css";
 
 // Komponen terpisah untuk handle image dengan loading state
@@ -83,7 +84,6 @@ const Profil = () => {
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [imageDebugInfo, setImageDebugInfo] = useState('');
   
   // Helper function untuk validasi dan format base64
   const processImageData = (fotoData) => {
@@ -166,17 +166,18 @@ const Profil = () => {
         console.log('=== FETCHING USER PROFILE ===');
         console.log('User ID:', userId);
 
-        // Fetch data dari kedua endpoint
-        const [userResponse, profilResponse] = await Promise.all([
-          fetch(`http://localhost:5000/api/users/${userId}`),
-          fetch(`http://localhost:5000/api/profil/${userId}`)
+        // Fetch data menggunakan utility API
+        const [userResponseData, profilData] = await Promise.all([
+          getData(`/api/users/${userId}`),
+          getData(`/api/profil/${userId}`).catch(error => {
+            // Jika profil tidak ada (404), return default
+            if (error.message.includes('404')) {
+              return { nama: "User", foto: null };
+            }
+            throw error;
+          })
         ]);
         
-        if (!userResponse.ok) {
-          throw new Error(`Error fetching user data: ${userResponse.status}`);
-        }
-        
-        const userResponseData = await userResponse.json();
         console.log('=== USER RESPONSE DATA ===');
         console.log('userResponseData:', userResponseData);
         
@@ -184,28 +185,14 @@ const Profil = () => {
         console.log('=== EXTRACTED USER DATA ===');
         console.log('userData:', userData);
         
-        // Profil data bisa tidak ada (optional)
-        let profilData = { nama: "User", foto: null };
-        if (profilResponse.ok) {
-          profilData = await profilResponse.json();
-          console.log('=== PROFIL DATA DARI API ===');
-          console.log('profilData:', profilData);
-          console.log('profilData.nama:', profilData.nama);
-          console.log('profilData.foto exists:', !!profilData.foto);
-          
-          if (profilData.foto) {
-            console.log('profilData.foto type:', typeof profilData.foto);
-            console.log('profilData.foto length:', profilData.foto.length);
-          }
-        } else {
-          console.log('=== PROFIL RESPONSE ERROR ===');
-          console.log('Status:', profilResponse.status);
-          console.log('StatusText:', profilResponse.statusText);
-          
-          // Jika 404, (belum ada profil)
-          if (profilResponse.status !== 404) {
-            console.warn('Unexpected error fetching profile:', profilResponse.statusText);
-          }
+        console.log('=== PROFIL DATA FROM API ===');
+        console.log('profilData:', profilData);
+        console.log('profilData.nama:', profilData.nama);
+        console.log('profilData.foto exists:', !!profilData.foto);
+        
+        if (profilData.foto) {
+          console.log('profilData.foto type:', typeof profilData.foto);
+          console.log('profilData.foto length:', profilData.foto.length);
         }
         
         // Process foto dengan function helper
@@ -250,8 +237,6 @@ const Profil = () => {
               aktivitas: userData.aktivitas || "Tidak diketahui",
               porsi_makan: userData.porsi_makan || "Tidak diketahui"
             });
-            
-            setImageDebugInfo('Using localStorage fallback - no photo available');
           } catch (parseError) {
             console.error('Error parsing localStorage data:', parseError);
             setError('Gagal memuat data profil. Data localStorage rusak.');

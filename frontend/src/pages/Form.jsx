@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate
+import { useNavigate } from 'react-router-dom';
 import '../styles/Form.css';
+import { postData } from '../utils/api'; // Import the API utility
 
 function Form() {
-  const navigate = useNavigate(); // Initialize navigate function
+  const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
     jenis_kelamin: '',
@@ -17,19 +18,6 @@ function Form() {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fungsi untuk generate ID integer sederhana (1-9999)
-  const generateSimpleIntId = () => {
-    return Math.floor(Math.random() * 9999) + 1;
-  };
-
-  // Alternative: Fungsi untuk generate ID berdasarkan counter
-  const generateCounterId = () => {
-    let lastId = parseInt(localStorage.getItem('last_user_id') || '0');
-    lastId += 1;
-    localStorage.setItem('last_user_id', lastId.toString());
-    return lastId;
-  };
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({
@@ -37,6 +25,7 @@ function Form() {
       [name]: value,
     });
 
+    // Clear error when user starts typing
     if (errors[name]) {
       setErrors({
         ...errors,
@@ -68,7 +57,7 @@ function Form() {
     setIsSubmitting(true);
 
     try {
-      
+      // Prepare data to send
       const dataToSend = {
         jenis_kelamin: formData.jenis_kelamin,
         usia: parseInt(formData.usia),
@@ -78,71 +67,75 @@ function Form() {
         porsi_makan: parseInt(formData.porsi_makan)
       };
 
-      // Coba kirim ke API, tapi kalau gagal tetap lanjut
-        const response = await fetch('http://localhost:5000/api/users', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(dataToSend)
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        console.log('Success:', result);
-        
-        // PENTING: Gunakan ID yang dikembalikan dari database
-        // Sesuaikan dengan format response server yang menggunakan user_id
-        const userId = result.id || result.data?.id || result.user?.id || result.user?.user_id || result.user_id;
-        
-        if (!userId) {
-          console.log('Response dari server:', result);
-          throw new Error('ID tidak diterima dari server');
-        }
-        
-        // Simpan user_id yang benar dari database ke localStorage
-        localStorage.setItem('user_id', userId.toString());
-        
-        // Simpan data user lengkap untuk keperluan profil
-        const completeUserData = {
-          id: userId,
-          ...dataToSend
-        };
-        localStorage.setItem('user_data', JSON.stringify(completeUserData));
-        
-        // Tampilkan pesan sukses
-        alert(`Data berhasil disimpan! User ID: ${userId}`);
-
-        // Reset form data
-        setFormData({
-          jenis_kelamin: '',
-          usia: '',
-          tinggi_badan: '',
-          berat_badan: '',
-          aktivitas: '',
-          porsi_makan: '',
-        });
-
-        // Navigate ke halaman Beranda setelah berhasil submit
-        navigate('/beranda'); // DIPERBAIKI: Ganti dari '/' ke '/beranda'
-
-      } catch (error) {
-        console.error('Error:', error);
-        alert(`Terjadi kesalahan: ${error.message}`);
-      } finally {
-        setIsSubmitting(false);
+      // Use the API utility to send data
+      const result = await postData('/api/users', dataToSend);
+      
+      // Extract user ID from response
+      const userId = result.id || result.data?.id || result.user?.id || result.user?.user_id || result.user_id;
+      
+      if (!userId) {
+        console.log('Response dari server:', result);
+        throw new Error('ID tidak diterima dari server');
       }
-    };
+      
+      // Store user data in memory (no localStorage in production)
+      const completeUserData = {
+        id: userId,
+        ...dataToSend
+      };
+      
+      // For development purposes, you might want to store in localStorage
+      // Remove these lines in production or use a state management solution
+      if (import.meta.env.VITE_NODE_ENV !== 'production') {
+        localStorage.setItem('user_id', userId.toString());
+        localStorage.setItem('user_data', JSON.stringify(completeUserData));
+      }
+      
+      // Show success message
+      alert(`Data berhasil disimpan! User ID: ${userId}`);
 
-    const ChevronDownIcon = () => (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-      </svg>
-    );
+      // Reset form data
+      setFormData({
+        jenis_kelamin: '',
+        usia: '',
+        tinggi_badan: '',
+        berat_badan: '',
+        aktivitas: '',
+        porsi_makan: '',
+      });
+
+      // Navigate to Beranda page
+      navigate('/beranda');
+
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      
+      // Show user-friendly error message
+      let errorMessage = 'Terjadi kesalahan saat mengirim data.';
+      
+      if (error.message.includes('timeout')) {
+        errorMessage = 'Koneksi timeout. Silakan coba lagi.';
+      } else if (error.message.includes('Network')) {
+        errorMessage = 'Masalah koneksi jaringan. Periksa koneksi internet Anda.';
+      } else if (error.status === 400) {
+        errorMessage = 'Data yang dikirim tidak valid. Periksa kembali form Anda.';
+      } else if (error.status === 500) {
+        errorMessage = 'Terjadi kesalahan pada server. Silakan coba lagi nanti.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      alert(`Error: ${errorMessage}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const ChevronDownIcon = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+  );
 
   return (
     <section className="form-container relative w-full min-h-screen font-sans">
