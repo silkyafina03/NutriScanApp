@@ -49,6 +49,10 @@ app.use('/api/users', userRoutes);
 app.use('/api/profil', profilRoutes);
 app.use('/api/riwayat', riwayatRoutes);
 
+app.get('/', (req, res) => {
+  res.send('NutriScanApp is running! 🚀');
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('=== SERVER ERROR ===');
